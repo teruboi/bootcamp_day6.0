@@ -4,9 +4,15 @@ const fs = require('fs')
 const morgan = require('morgan')
 const bodyParser = require('body-parser')
 const validator = require('validator')
+const { checkDuplicate } = require('./function')
+
+// call database
+const pool = require('./db')
+const { body, check, validationResult } = require('express-validator')
 
 
 const app = express()
+app.use(express.json()) // => req.body
 const port = 3000
 
 // parse application/x-www-form-urlencoded
@@ -41,94 +47,112 @@ app.get('/about', (req, res, next) => {
     res.render('about', {title: 'About'})
 })
 
-app.get('/contact', (req, res) => {
-    // // res.sendFile('./contact.html', {root: __dirname})
-    // const contacts = [
-    //     {nama: 'Reynaldi', no_telp: '081255556666'},
-    //     {nama: 'Tomi', no_telp: '081233334444'},
-    //     {nama: 'Joni', no_telp: '081277778888'},
-    //     {nama: 'Budi', no_telp: '081299990000'},
-    // ]
-    // const contacts = []
-    res.render('contact', {title: 'Contacts', arr: (JSON.parse(fs.readFileSync('./public/contacts.json', 'utf-8'))), msg: req.query.success})
+app.get('/contact', async (req, res) => {
+    try {
+        const db = (await pool.query('SELECT name, phone FROM contacts')).rows
+        // console.log(db)
+        res.render('contact', {title: 'Contacts', arr: db, msg: req.query.success})
+    } catch (err) {
+        console.error(err.message);
+    }
+    
 })
 
-app.get('/contact/detail/:name', (req, res) => {
-    let temp = JSON.parse(fs.readFileSync('./public/contacts.json', 'utf-8'))
-    console.log(temp);
-    let data = []
-    temp.forEach(e => {
-        if (e.name === req.params.name) {
-            data.push(e)
-        }
-    });
-
-    res.render('detail', {title: `${req.params.name}'s Contact Detail`, name: req.params.name, arr: data})
+app.get('/contact/detail/:name', async (req, res) => {
+    try {
+        const db = (await pool.query(`SELECT * FROM contacts WHERE name = '${req.params.name}'`)).rows
+        // console.log(db)
+        res.render('detail', {title: `${req.params.name}'s Contact Detail`, name: req.params.name, arr: db})
+    } catch (err) {
+        console.error(err.message);
+    }
+    
 })
 
 app.get('/contact/create', (req, res) => {
     res.render('create', {title: 'Create New Contact', name: "", email: "", phone: "", msg: req.query.err})
 })
 
-app.post('/contact/create', (req, res) => {    
-    let data = JSON.parse(fs.readFileSync('./public/contacts.json', 'utf-8'))
-
-    let same = data.filter((e) => e.name === req.body.newName)
-
-    if (same.length > 0) {
-        res.redirect('/contact/create?err=01')
-    }else if(!validator.isMobilePhone(req.body.newPhone, ['id-ID'])) {
-        res.redirect('/contact/create?err=02')
-    }else {
-        const newData = {name: req.body.newName, email: req.body.newEmail, phone: req.body.newPhone}
-        data.push(newData)
-        fs.writeFileSync('./public/contacts.json', JSON.stringify(data), 'utf-8')
-        res.redirect('/contact?success=create')
+app.post('/contact/create', [
+body('newName').custom(async (value) => {
+    const dupData = await checkDuplicate(value)
+    if(!dupData) {
+        throw new Error('Contact already exists')
     }
-})
+    return true
+}),
+check('newEmail', 'Invalid email').isEmail(),
+check('newPhone', 'Invalid phone number').isMobilePhone('id-ID'),
+],
+async (req, res) => {
+    const errors = validationResult(req)
+    console.log(errors.array());
 
-app.get('/contact/edit/:name', (req,res) => {
-    const name = req.params.name
-    let temp = JSON.parse(fs.readFileSync('./public/contacts.json', 'utf-8'))
-    console.log(temp);
-    let data = []
-    temp.forEach(e => {
-        if (e.name === name) {
-            data.push(e)
+    if (!errors.isEmpty()) {
+        res.render('create', {title: 'Create New Contact', name: req.body.newName, email: req.body.newEmail, phone: req.body.newPhone, err: errors.array()})
+    } else {
+        try {
+            const name = req.body.newName
+            const email = req.body.newEmail
+            const phone = req.body.newPhone
+    
+            await pool.query(`INSERT INTO contacts VALUES ('${name}', '${email}', '${phone}')`)
+            res.redirect('/contact?success=create')
+        } catch (err) {
+            console.error(err.message);
         }
-    });
-
-    res.render('edit', {title: 'Edit contact detail', arr: data, oldName: name, msg: req.query.err})
-})
-
-app.post('/contact/edit/:oldname', (req,res) => {
-    // let newData = {name: req.body.newName, email: req.body.newEmail, phone: req.body.newPhone}
-    // console.log(newData)
-    let data = JSON.parse(fs.readFileSync('./public/contacts.json', 'utf-8'))
-    console.log(data);
-
-    data = data.filter(e => e.name !== req.params.oldname)
-    console.log(data);
-
-    let same = data.filter((e) => e.name === req.body.newName)
-
-    if (same.length > 0) {
-        res.redirect(`/contact/edit/${req.params.oldname}?err=01`)
-    }else if(!validator.isMobilePhone(req.body.newPhone, ['id-ID'])) {
-        res.redirect(`/contact/edit/${req.params.oldname}?err=02`)
-    }else {
-        const newData = {name: req.body.newName, email: req.body.newEmail, phone: req.body.newPhone}
-        data.push(newData)
-        fs.writeFileSync('./public/contacts.json', JSON.stringify(data), 'utf-8')
-        res.redirect('/contact?success=edit')
     }
 })
 
-app.get('/contact/delete/:name', (req,res) => {
-    let data = JSON.parse(fs.readFileSync('./public/contacts.json', 'utf-8'))
-    const newData = data.filter(e => e.name.toLowerCase() !== req.params.name.toLowerCase());
-    fs.writeFileSync('./public/contacts.json', JSON.stringify(newData), 'utf-8')
-    res.redirect('/contact?success=delete')
+app.get('/contact/edit/:name', async (req,res) => {
+    try {
+        const name = req.params.name
+        const db = (await pool.query(`SELECT * FROM contacts WHERE name = '${req.params.name}'`)).rows
+        console.log(db)
+
+        res.render('edit', {title: 'Edit Contact Detail', arr: db, oldName: name, msg: req.query.err})
+    } catch (err) {
+        console.error(err.message);
+    }
+})
+
+app.post('/contact/edit/:oldname', [
+body('newName').custom(async (value, { req }) => {
+    const dupData = await checkDuplicate(value)
+    if(value !== req.params.oldname && !dupData) {
+        throw new Error('Contact already exists')
+    }
+    return true
+}),
+check('newEmail', 'Invalid email').isEmail(),
+check('newPhone', 'Invalid phone number').isMobilePhone('id-ID'),
+], async (req,res) => {
+    const errors = validationResult(req)
+    console.log(errors.array());
+
+    if (!errors.isEmpty()) {
+        res.render('edit', {title: 'Edit Contact Detail', oldName: req.params.oldname, arr: [{name: req.body.newName, email: req.body.newEmail, phone: req.body.newPhone}], err: errors.array()})
+    } else {
+        try {
+            const name = req.body.newName
+            const email = req.body.newEmail
+            const phone = req.body.newPhone
+    
+            await pool.query(`UPDATE contacts SET name='${name}', email='${email}', phone='${phone}' WHERE name = '${req.params.oldname}'`)
+            res.redirect('/contact?success=edit')
+        } catch (err) {
+            console.error(err.message);
+        }
+    }
+})
+
+app.get('/contact/delete/:name', async (req,res) => {
+    try {
+        await pool.query(`DELETE FROM contacts WHERE name = '${req.params.name}'`)
+        res.redirect('/contact?success=delete')
+    } catch (err) {
+        console.error(err.message);
+    }
 })
 
 app.get('/product/:id', (req, res) => {

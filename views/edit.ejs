@@ -1,10 +1,15 @@
-<% if (msg == '01') { %>
-  <div class="alert alert-warning alert-dismissible" role="alert">
-      Contact's name already exists
-  </div>
-<% } else if (msg == '02') { %>
-  <div class="alert alert-warning alert-dismissible" role="alert">
-      Invalid phone number (Area: ID)
+<% if (typeof err != 'undefined') { %>
+  <div class="alert alert-danger alert-dismissible" role="alert">
+      <ul>
+          <% err.forEach(e => { %>
+              <li>
+                  <%= e.msg %>
+              </li>
+          <% }) %>
+      </ul>
+      <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+      </button>
   </div>
 <% } %>
 
@@ -15,15 +20,15 @@
             <form action="/contact/edit/<%= oldName %>" method="post">
                 <div class="form-group">
                   <label for="newName">Name</label>
-                  <input type="text" class="form-control" name="newName" value='<%= arr[0].name %>'>
+                  <input type="text" class="form-control" name="newName" required value='<%= arr[0].name %>'>
                 </div>
                 <div class="form-group">
                   <label for="newEmail">Email Address</label>
-                  <input type="email" class="form-control" name="newEmail" value=<%= arr[0].email %>>
+                  <input type="text" class="form-control" name="newEmail" required value=<%= arr[0].email %>>
                 </div>
                 <div class="form-group">
                   <label for="newPhone">Phone Number</label>
-                  <input type="text" class="form-control" name="newPhone" value=<%= arr[0].phone %>>
+                  <input type="text" class="form-control" name="newPhone" required value=<%= arr[0].phone %>>
                 </div>
                 <button type="submit" class="btn btn-primary">Submit</button>
             </form>

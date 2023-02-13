@@ -35,7 +35,7 @@
         <tbody>
             <tr>
                 <td colspan="4">
-                    <a href="/contact/create" class="inline-d-flex btn btn-primary justify-content-center text-center">+ Create new contact</a>
+                    <a href="/contact/create" class="inline-d-flex btn btn-primary justify-content-center text-center"> <i class="fa-solid fa-user-plus"></i>&nbsp;&nbsp;<b>Create new contact</b></a>
                 </td>
             </tr>
             <% for( let i = 0; i < arr.length; i++ ) { %>
@@ -45,10 +45,16 @@
                     <td><%= arr[i].phone %></td>
                     <td>
                         <span class="flex-row justify-content-center">
-                            <a style="margin-right: 10px" href="/contact/detail/<%= arr[i].name %>" class="col-2 btn btn-info">detail</a>
-                            <a style="margin-right: 10px" href="/contact/edit/<%= arr[i].name %>" class="col-2 btn btn-warning">edit</a>
+                            <a style="margin-right: 10px" href="/contact/detail/<%= arr[i].name %>" class=" btn btn-outline-info">
+                                <i class="fa-solid fa-circle-info"></i>
+                            </a>
+                            <a style="margin-right: 10px" href="/contact/edit/<%= arr[i].name %>" class=" btn btn-outline-warning">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
                             <!-- <button type="button" class="btn btn-danger" data-toggle="modal" data-target="#deletePrompt">delete</button> -->
-                            <a href="/contact/delete/<%= arr[i].name %>" class="btn btn-danger" onclick="return confirm(`yang benerrr??`) ">Delete</a>                                         
+                            <a href="/contact/delete/<%= arr[i].name %>" class="btn btn-outline-danger" onclick="return confirm(`yang benerrr??`) ">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </a>                                         
                                         </div>
                                     </div>
                                 </div>
