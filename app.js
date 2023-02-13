@@ -76,7 +76,7 @@ app.get('/contact/create', (req, res) => {
 app.post('/contact/create', [
 body('newName').custom(async (value) => {
     const dupData = await checkDuplicate(value)
-    if(!dupData) {
+    if(dupData) {
         throw new Error('Contact already exists')
     }
     return true
@@ -119,7 +119,7 @@ app.get('/contact/edit/:name', async (req,res) => {
 app.post('/contact/edit/:oldname', [
 body('newName').custom(async (value, { req }) => {
     const dupData = await checkDuplicate(value)
-    if(value !== req.params.oldname && !dupData) {
+    if(value !== req.params.oldname && dupData) {
         throw new Error('Contact already exists')
     }
     return true
